@@ -1,0 +1,42 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/xenial64"
+
+  config.vm.provider "virtualbox" do |v|
+    v.customize ["modifyvm", :id, "--uartmode1", "disconnected"]
+  end
+
+  config.vm.define "haproxy" do |node|
+      node.vm.network "private_network", ip: "192.168.55.10"
+      node.vm.provider :virtualbox do |vb|
+        vb.memory = 512
+        vb.cpus = 1
+      end
+  end
+
+  config.vm.define "rancher-1" do |node|
+      node.vm.network "private_network", ip: "192.168.55.11"
+      node.vm.provider :virtualbox do |vb|
+        vb.memory = 2048
+        vb.cpus = 2
+      end
+  end
+
+  config.vm.define "rancher-2" do |node|
+      node.vm.network "private_network", ip: "192.168.55.12"
+      node.vm.provider :virtualbox do |vb|
+        vb.memory = 2048
+        vb.cpus = 2
+      end
+  end
+
+  config.vm.define "mysql" do |node|
+      node.vm.network "private_network", ip: "192.168.55.13"
+      node.vm.provider :virtualbox do |vb|
+        vb.memory = 2048
+        vb.cpus = 2
+      end
+  end
+end
