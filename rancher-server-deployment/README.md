@@ -17,7 +17,7 @@ vagrant up
 ### Step 2: run the provisioning script:
 From the same directory execute provisioning script with infrastructor CLI:
 ```
-infrastructor run -f provisioning.groovy
+infrastructor run -f provision.groovy
 ```
 you will be asked for a MySQL password during execution.
 
