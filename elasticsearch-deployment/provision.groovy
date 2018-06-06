@@ -1,3 +1,5 @@
+def keypath(def machine) { ".vagrant/machines/$machine/virtualbox/private_key" }
+
 inlineInventory {
   node id: 'elastic-1', host: '192.168.55.11', username: 'ubuntu', keyfile: keypath('elastic-1')
   node id: 'elastic-2', host: '192.168.55.12', username: 'ubuntu', keyfile: keypath('elastic-2')
@@ -6,9 +8,12 @@ inlineInventory {
 }.provision {
 
     task name: "install docker", parallel: 4, actions: {
-      shell "sudo curl -Ssl https://get.docker.com | sh"
-      shell "sudo usermod -aG docker ubuntu"
-      shell "sudo sysctl -w vm.max_map_count=262144"
+      shell user: 'root', command: '''
+        apt update
+        apt install docker.io -y
+        usermod -aG docker ubuntu
+        sysctl -w vm.max_map_count=262144
+      '''
     }
 
     task name: "run elasticsearch nodes", actions: {
@@ -23,5 +28,3 @@ inlineInventory {
       """
     }
 }
-
-def keypath(def machine) { ".vagrant/machines/$machine/virtualbox/private_key" }
