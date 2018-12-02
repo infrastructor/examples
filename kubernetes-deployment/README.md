@@ -13,7 +13,7 @@ Run virtual node using vagrant CLI from the directory where the Vagrantfile is l
 vagrant up
 ```
 
-### Step 2: run the provisioning script:
+### Step 2: run the provisioning script
 From the same directory execute provisioning script with infrastructor CLI:
 ```
 infrastructor run -f provision.groovy
