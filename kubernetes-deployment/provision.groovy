@@ -13,9 +13,9 @@ inventory.provision { nodes ->
     def POD_NETWORK_CIDR = "10.50.0.0/16"
     def API_SERVER_BIND_PORT = 8080
     def MASTER_HOST = nodes['master'].host
-    def All_NODES = nodes.size()
+    def ON_ALL_NODES = nodes.size()
 
-    task name: "initializing host", parallel: All_NODES, actions: {
+    task name: "initializing host", parallel: ON_ALL_NODES, actions: {
         file {
             user    = 'root'
             target  = "/etc/hostname"
@@ -33,7 +33,7 @@ inventory.provision { nodes ->
         shell "sudo swapoff -a"
     }
 
-    task name: "installing kubernetes", parallel: All_NODES, actions: { node ->
+    task name: "installing kubernetes", parallel: ON_ALL_NODES, actions: { node ->
         shell user: 'root', command: '''
             apt update
             apt install docker.io -y
@@ -75,7 +75,7 @@ inventory.provision { nodes ->
         '''
     }
 
-    task name: "initializing worker nodes", filter: {!'role:master'}, parallel: All_NODES, actions: {
+    task name: "initializing worker nodes", filter: {!'role:master'}, parallel: ON_ALL_NODES, actions: {
         shell "sudo kubeadm join $MASTER_HOST:$API_SERVER_BIND_PORT --token $TOKEN --discovery-token-unsafe-skip-ca-verification"
     }
 }
