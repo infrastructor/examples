@@ -13,9 +13,9 @@ inventory.provision { nodes ->
     def POD_NETWORK_CIDR = "10.50.0.0/16"
     def API_SERVER_BIND_PORT = 8080
     def MASTER_HOST = nodes['master'].host
-    def NODES_COUNT = nodes.size()
+    def All_NODES = nodes.size()
 
-    task name: "initializing host", parallel: NODES_COUNT, actions: {
+    task name: "initializing host", parallel: All_NODES, actions: {
         file {
             user    = 'root'
             target  = "/etc/hostname"
@@ -33,15 +33,13 @@ inventory.provision { nodes ->
         shell "sudo swapoff -a"
     }
 
-    task name: 'installing docker', parallel: NODES_COUNT, actions: {
+    task name: "installing kubernetes", parallel: All_NODES, actions: { node ->
         shell user: 'root', command: '''
             apt update
             apt install docker.io -y
             usermod -aG docker vagrant
         '''
-    }
 
-    task name: "installing kubernetes", parallel: NODES_COUNT, actions: { node ->
         file {
             user = 'root'
             target = '/etc/apt/sources.list.d/kubernetes.list'
@@ -70,23 +68,14 @@ inventory.provision { nodes ->
             sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
             sudo chown $(id -u):$(id -g) $HOME/.kube/config
         '''
-    }
-
-    task name: 'initializing calico cni', filter: {'role:master'}, actions: {
-        upload   source: 'templates/calico/etcd.yaml',   target: '/tmp/etcd.yaml'
-        upload   source: 'templates/calico/rbac.yaml',   target: '/tmp/rbac.yaml'
-        template source: 'templates/calico/calico.yaml', target: '/tmp/calico.yaml', bindings: [
-            CALICO_IPV4POOL_CIDR: POD_NETWORK_CIDR
-        ]
 
         shell '''
-            kubectl apply -f /tmp/etcd.yaml
-            kubectl apply -f /tmp/rbac.yaml
-            kubectl apply -f /tmp/calico.yaml
+            kubectl apply -f https://docs.projectcalico.org/v3.4/getting-started/kubernetes/installation/hosted/etcd.yaml
+            kubectl apply -f https://docs.projectcalico.org/v3.4/getting-started/kubernetes/installation/hosted/calico.yaml
         '''
     }
 
-    task name: "join nodes", filter: {!'role:master'}, parallel: NODES_COUNT, actions: {
+    task name: "initializing worker nodes", filter: {!'role:master'}, parallel: All_NODES, actions: {
         shell "sudo kubeadm join $MASTER_HOST:$API_SERVER_BIND_PORT --token $TOKEN --discovery-token-unsafe-skip-ca-verification"
     }
 }
