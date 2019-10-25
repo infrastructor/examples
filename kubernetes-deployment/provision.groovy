@@ -2,9 +2,7 @@ def keypath(def machine) { ".vagrant/machines/$machine/virtualbox/private_key" }
 
 def inventory = inlineInventory {
     node id: 'master', host: '192.168.65.10', username: 'vagrant', keyfile: keypath('master'), tags: [role: 'master']
-    (1..2).each { 
-        node id: "node-$it", host: "192.168.65.1$it", username: 'vagrant', keyfile: keypath("node-$it")
-    }
+    (1..2).each { node id: "node-$it", host: "192.168.65.1$it", username: 'vagrant', keyfile: keypath("node-$it") }
 }
 
 inventory.provision { nodes ->
@@ -38,6 +36,7 @@ inventory.provision { nodes ->
             apt update
             apt install docker.io -y
             usermod -aG docker vagrant
+            systemctl enable docker.service
         '''
 
         file {
@@ -52,11 +51,15 @@ inventory.provision { nodes ->
             apt install kubelet kubeadm kubectl kubernetes-cni -y
         '''
 
-        file  user: 'root', target: '/etc/default/kubelet', content: "KUBELET_EXTRA_ARGS=--node-ip=$node.host"
+        file { 
+            user = 'root'
+            target = '/etc/default/kubelet'
+            content = "KUBELET_EXTRA_ARGS=--node-ip=$node.host"
+        }
     }
     
     task name: "initializing kubernetes master", filter: {'role:master'}, actions: { node ->
-        shell """
+        shell user: 'root', command: """
             sudo kubeadm init --token $TOKEN \
             --apiserver-advertise-address $node.host \
             --apiserver-bind-port $API_SERVER_BIND_PORT \
@@ -68,14 +71,19 @@ inventory.provision { nodes ->
             sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
             sudo chown $(id -u):$(id -g) $HOME/.kube/config
         '''
+    }
 
-        shell '''
-            kubectl apply -f https://docs.projectcalico.org/v3.4/getting-started/kubernetes/installation/hosted/etcd.yaml
-            kubectl apply -f https://docs.projectcalico.org/v3.4/getting-started/kubernetes/installation/hosted/calico.yaml
-        '''
+    task name: 'deploy calico', filter: {'role:master'}, actions: {
+        template {
+            source = 'calico/calico-3.10.yaml'
+            target = '/tmp/calico/calico.yml'
+            bindings = [CALICO_IPV4POOL_CIDR: POD_NETWORK_CIDR]
+        }
+
+        shell user: 'root', command: 'kubectl apply -f /tmp/calico/calico.yml'
     }
 
     task name: "initializing worker nodes", filter: {!'role:master'}, parallel: ON_ALL_NODES, actions: {
-        shell "sudo kubeadm join $MASTER_HOST:$API_SERVER_BIND_PORT --token $TOKEN --discovery-token-unsafe-skip-ca-verification"
+        shell user: 'root', command: "kubeadm join $MASTER_HOST:$API_SERVER_BIND_PORT --token $TOKEN --discovery-token-unsafe-skip-ca-verification"
     }
 }
